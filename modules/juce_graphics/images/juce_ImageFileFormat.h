@@ -199,6 +199,62 @@ private:
 
 //==============================================================================
 /**
+    A subclass of ImageFileFormat for reading BMP files.
+
+    @see ImageFileFormat, PNGImageFormat, JPEGImageFormat
+
+    @tags{Graphics}
+*/
+class JUCE_API  BMPImageFormat : public ImageFileFormat
+{
+public:
+    //==============================================================================
+    BMPImageFormat();
+    ~BMPImageFormat() override;
+
+    //==============================================================================
+    String getFormatName() override;
+    bool usesFileExtension(const File&) override;
+    bool canUnderstand(InputStream&) override;
+    Image decodeImage(InputStream&) override;
+    bool writeImageToStream(const Image&, OutputStream&) override;
+
+private:
+
+#ifdef __GNUC__
+#define PACKED( __Declaration__ ) __Declaration__ __attribute__((__packed__))
+#elif defined _MSC_VER
+#define PACKED( __Declaration__ ) __pragma( pack(push, 1) ) __Declaration__ __pragma( pack(pop))
+#else 
+#define PACKED( __Declaration__ ) __Declaration__
+#endif
+
+    PACKED(struct BitmapInfoHeader {
+        uint32 size = sizeof(BitmapInfoHeader); // size of structure in bytes
+        int32  width = 0; // pixel width
+        int32  height = 0; // pixel height
+        int16  planes = 1; // always 1
+        int16  bitCount; // bits per pixel
+        uint32 compression = 0; // leave set to 0, since no compression is supported here
+        uint32 imageSize = 0; // size of image in bytes. Can be left 0 for uncompressed images.
+        int32  pixelsPerMeterX = 0; // pixels per meter horizontally
+        int32  pixelsPerMeterY = 0; // pixels per meter vertically
+        uint32 colorsUsed = 0; // not relevent since we won't support color tables
+        uint32 colorsImportant = 0; // not relevent since we won't support color tables
+    };)
+
+        PACKED(typedef struct BitmapFileHeader {
+        uint16  type;// = 0x4d42; // always 0x4d42 'BM'
+        uint32 fileSize;// = 0; // filesize in bytes
+        uint16  reserved1;// = 0; // must be 0
+        uint16  reserved2;// = 0; // must be 0
+        uint32 offset;// = sizeof(BitmapFileHeader) + sizeof(BitmapInfoHeader);  // offset to image data
+    };)
+#undef PACKED
+};
+
+//==============================================================================
+/**
     A subclass of ImageFileFormat for reading GIF files.
 
     @see ImageFileFormat, PNGImageFormat, JPEGImageFormat

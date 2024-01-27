@@ -122,6 +122,7 @@
 #include "images/juce_ImageCache.cpp"
 #include "images/juce_ImageConvolutionKernel.cpp"
 #include "images/juce_ImageFileFormat.cpp"
+#include "image_formats/juce_BMPLoader.cpp"
 #include "image_formats/juce_GIFLoader.cpp"
 #include "image_formats/juce_JPEGLoader.cpp"
 #include "image_formats/juce_PNGLoader.cpp"
