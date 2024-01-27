@@ -4922,6 +4922,49 @@ String SystemClipboard::getTextFromClipboard()
 }
 
 //==============================================================================
+Image juce::SystemClipboard::getImageFromClipboard()
+{
+    Image img;
+    if (!IsClipboardFormatAvailable(CF_DIB))
+        return img;
+
+    if (!OpenClipboard(NULL))
+        return img;
+
+    auto hCb = GetClipboardData(CF_DIB);
+    if (!hCb || hCb == INVALID_HANDLE_VALUE)
+        return img;
+
+    auto data = GlobalLock(hCb);
+    if (data)
+    {
+        auto infoHeader = (BITMAPINFOHEADER*)data;
+        if (infoHeader->biBitCount == 32 &&
+            infoHeader->biCompression == BI_RGB
+            )
+        {
+            img = Image (Image::RGB, infoHeader->biWidth, infoHeader->biHeight, false);
+
+            auto imageData = (char*)(data) + sizeof(BITMAPINFOHEADER);
+            auto stride = ((((infoHeader->biWidth * infoHeader->biBitCount) + 31) & ~31) >> 3);
+            infoHeader->biSizeImage = abs(infoHeader->biHeight) * stride;
+            for (int y = 0; y < infoHeader->biHeight; y++)
+            {
+                for (int x = 0; x < infoHeader->biWidth; x++)
+                {
+                    auto pixelPtr = (uint8_t*)imageData + y * stride + x * infoHeader->biBitCount / 8;
+                    img.setPixelAt(x, infoHeader->biHeight-y-1, Colour(*(pixelPtr + 2), *(pixelPtr + 1), *pixelPtr));
+                }
+            }
+        }
+        GlobalUnlock(data);
+    }
+    CloseClipboard();
+    return img;
+}
+
+
+//==============================================================================
 void Desktop::setKioskComponent (Component* kioskModeComp, bool enableOrDisable, bool /*allowMenusAndBars*/)
 {
     if (auto* tlw = dynamic_cast<TopLevelWindow*> (kioskModeComp))

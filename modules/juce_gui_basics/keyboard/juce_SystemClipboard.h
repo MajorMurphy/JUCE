@@ -44,6 +44,9 @@ public:
         anything..
     */
     static String getTextFromClipboard();
+
+    /** Retrieve binary image from clipboard **/
+    static Image getImageFromClipboard();
 };
 
 } // namespace juce
