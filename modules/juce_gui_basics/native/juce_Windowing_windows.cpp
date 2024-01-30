@@ -4944,19 +4944,20 @@ Image juce::SystemClipboard::getImageFromClipboard()
             )
         {
             if(infoHeader->biCompression == BI_BITFIELDS)
-                img = Image(Image::ARGB, infoHeader->biWidth, infoHeader->biHeight, true);
+                img = Image(Image::ARGB, infoHeader->biWidth, abs(infoHeader->biHeight), true);
             else
-                img = Image(Image::RGB, infoHeader->biWidth, infoHeader->biHeight, true);
+                img = Image(Image::RGB, infoHeader->biWidth, abs(infoHeader->biHeight), true);
 
             auto imageData = (char*)(data)+sizeof(BITMAPINFOHEADER);
             auto stride = ((((infoHeader->biWidth * infoHeader->biBitCount) + 31) & ~31) >> 3);
-            infoHeader->biSizeImage = abs(infoHeader->biHeight) * stride;
-            for (int y = 0; y < infoHeader->biHeight; y++)
+
+            for (int y = 0; y < abs(infoHeader->biHeight); y++)
             {
                 for (int x = 0; x < infoHeader->biWidth; x++)
                 {
-                    auto pixelPtr = (uint8_t*)imageData + y * stride + x * infoHeader->biBitCount / 8;
-                    img.setPixelAt(x, infoHeader->biHeight - y - 1, Colour(*(pixelPtr + 2), *(pixelPtr + 1), *pixelPtr, *(pixelPtr + 3)));
+                    auto pixelPtr = (uint8*)imageData + y * stride + x * infoHeader->biBitCount / 8;
+                    auto pixel = Colour(*(uint32*)pixelPtr);
+                    img.setPixelAt(x, abs(infoHeader->biHeight) - y - 1, pixel);
                 }
             }
         }
