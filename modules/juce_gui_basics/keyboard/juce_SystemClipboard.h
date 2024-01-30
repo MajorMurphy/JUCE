@@ -47,6 +47,9 @@ public:
 
     /** Retrieve binary image from clipboard **/
     static Image getImageFromClipboard();
+
+    /** Place binary image on clipboard **/
+    static void copyImageToClipboard(Image& image);
 };
 
 } // namespace juce
