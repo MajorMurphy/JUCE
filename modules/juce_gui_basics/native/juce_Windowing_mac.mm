@@ -585,4 +585,18 @@ String SystemClipboard::getTextFromClipboard()
     return nsStringToJuce ([[NSPasteboard generalPasteboard] stringForType: NSPasteboardTypeString]);
 }
 
+//==============================================================================
+Image SystemClipboard::getImageFromClipboard()
+{
+	// not yet implemented
+	jassertfalse;
+	return Image();
+}
+
+void SystemClipboard::copyImageToClipboard(Image&)
+{
+	// not yet implemented
+	jassertfalse;
+}
+	
 } // namespace juce

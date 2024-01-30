@@ -4922,7 +4922,7 @@ String SystemClipboard::getTextFromClipboard()
 }
 
 //==============================================================================
-Image juce::SystemClipboard::getImageFromClipboard()
+Image SystemClipboard::getImageFromClipboard()
 {
     Image img;
     if (!IsClipboardFormatAvailable(CF_DIB))
