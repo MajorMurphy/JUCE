@@ -5042,7 +5042,11 @@ void SystemClipboard::copyImageToClipboard(Image& image)
    
 
     EmptyClipboard();
-    DBG(SetClipboardData(CF_DIB, handle))
+    if (!SetClipboardData(CF_DIB, handle))
+    {
+        jassertfalse;
+        DBG("SetClipboardData error: " + String(GetLastError()));
+    }
     CloseClipboard();
     return;
     
