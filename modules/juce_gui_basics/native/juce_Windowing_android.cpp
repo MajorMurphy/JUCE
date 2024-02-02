@@ -2891,4 +2891,18 @@ const int KeyPress::rewindKey               = extendedKeyModifier + 72;
  };
 #endif
 
+//==============================================================================
+Image SystemClipboard::getImageFromClipboard()
+{
+	// not yet implemented
+	jassertfalse;
+	return Image();
+}
+
+void SystemClipboard::copyImageToClipboard(Image&)
+{
+	// not yet implemented
+	jassertfalse;
+}
+	
 } // namespace juce

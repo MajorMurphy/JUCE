@@ -851,4 +851,18 @@ void juce_LinuxRemoveRepaintListener (ComponentPeer* peer, Component* dummy)
         linuxPeer->removeOpenGLRepaintListener (dummy);
 }
 
+//==============================================================================
+Image SystemClipboard::getImageFromClipboard()
+{
+	// not yet implemented
+	jassertfalse;
+	return Image();
+}
+
+void SystemClipboard::copyImageToClipboard(Image&)
+{
+	// not yet implemented
+	jassertfalse;
+}
+
 } // namespace juce
