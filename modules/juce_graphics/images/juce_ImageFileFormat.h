@@ -243,7 +243,7 @@ private:
         uint32 colorsImportant = 0; // not relevent since we won't support color tables
     };)
 
-        PACKED(typedef struct BitmapFileHeader {
+        PACKED(struct BitmapFileHeader {
         uint16  type;// = 0x4d42; // always 0x4d42 'BM'
         uint32 fileSize;// = 0; // filesize in bytes
         uint16  reserved1;// = 0; // must be 0
