@@ -4964,7 +4964,7 @@ Image SystemClipboard::getImageFromClipboard()
                         auto g = *(uint32*)(pixelPtr - 2);
                         auto r = *(uint32*)(pixelPtr - 1);
                         auto b = *(uint32*)pixelPtr;
-                        pixel = Colour(r, g, b);
+                        pixel = Colour((uint8)r, (uint8)g, (uint8)b);
                     }
                     else jassertfalse;
                     img.setPixelAt(x, abs(infoHeader->biHeight) - y - 1, pixel);
@@ -5042,7 +5042,7 @@ void SystemClipboard::copyImageToClipboard(Image& image)
    
 
     EmptyClipboard();
-    auto result = SetClipboardData(CF_DIB, handle);
+    DBG(SetClipboardData(CF_DIB, handle))
     CloseClipboard();
     return;
     
