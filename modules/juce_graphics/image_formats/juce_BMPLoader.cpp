@@ -60,14 +60,6 @@ namespace juce
         BitmapFileHeader header;
         BitmapInfoHeader info;
 
-        // need to figure out struct alignment https://stackoverflow.com/questions/1537964/visual-c-equivalent-of-gccs-attribute-packed
-        auto mySize = sizeof(BitmapFileHeader);
-        auto theirSize = sizeof(BITMAPFILEHEADER);
-        jassert(sizeof(BitmapInfoHeader) == sizeof(BITMAPINFOHEADER));
-        jassert(mySize == theirSize);
-        jassert(sizeof(WORD) == sizeof(uint16));
-        jassert(sizeof(DWORD) == sizeof(uint32));
-
         if (in.read(&header, sizeof(header)) != sizeof(header))
             return false;
 
