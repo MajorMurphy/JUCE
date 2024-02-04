@@ -220,4 +220,30 @@ public:
     bool writeImageToStream (const Image&, OutputStream&) override;
 };
 
+//==============================================================================
+/**
+    A subclass of ImageFileFormat for reading and writing HEICfiles.
+
+    @see ImageFileFormat, PNGImageFormat
+
+    @tags{Graphics}
+*/
+class JUCE_API  HEIFImageFormat : public ImageFileFormat
+{
+public:
+    //==============================================================================
+    HEIFImageFormat();
+    ~HEIFImageFormat() override;
+
+    //==============================================================================
+    String getFormatName() override;
+    bool usesFileExtension(const File&) override;
+    bool canUnderstand(InputStream&) override;
+    Image decodeImage(InputStream&) override;
+    bool writeImageToStream(const Image&, OutputStream&) override;
+    
+private:
+   
+};
+
 } // namespace juce

@@ -123,6 +123,7 @@
 #include "images/juce_ImageConvolutionKernel.cpp"
 #include "images/juce_ImageFileFormat.cpp"
 #include "image_formats/juce_GIFLoader.cpp"
+#include "image_formats/juce_HEIFLoader.cpp"
 #include "image_formats/juce_JPEGLoader.cpp"
 #include "image_formats/juce_PNGLoader.cpp"
 #include "fonts/juce_AttributedString.cpp"
