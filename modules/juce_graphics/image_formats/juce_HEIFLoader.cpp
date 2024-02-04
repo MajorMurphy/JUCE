@@ -46,10 +46,22 @@ bool juce::HEIFImageFormat::usesFileExtension(const File& file)
 	return file.hasFileExtension("heif;heic");
 }
 
-bool juce::HEIFImageFormat::canUnderstand(InputStream&)
+bool juce::HEIFImageFormat::canUnderstand(InputStream& in)
 {
-	jassertfalse;
-	return true;
+	bool canUnderstand = false;
+	juce::Image decodedImage;
+	juce::MemoryBlock encodedImageData(in.getNumBytesRemaining());
+	in.read(encodedImageData.getData(), encodedImageData.getSize());
+
+	heif_context* ctx = heif_context_alloc();
+	auto readResult = heif_context_read_from_memory_without_copy(ctx, encodedImageData.getData(), encodedImageData.getSize(), nullptr);
+
+	if (readResult.code == heif_error_code::heif_error_Ok)
+		canUnderstand = true;
+
+	// clean up resources
+	heif_context_free(ctx);
+	return canUnderstand;
 }
 
 juce::Image juce::HEIFImageFormat::decodeImage(juce::InputStream& in)
