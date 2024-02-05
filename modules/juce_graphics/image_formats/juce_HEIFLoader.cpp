@@ -64,6 +64,15 @@ bool juce::HEIFImageFormat::canUnderstand(InputStream& in)
 	return canUnderstand;
 }
 
+inline void ABGRtoARGB(uint32* x)
+{	
+	// Source is in format: 0xAABBGGRR
+	*x = (*x & 0xFF00FF00) |		
+		((*x & 0x00FF0000) >> 16) | //______RR
+		((*x & 0x000000FF) << 16);  //__BB____
+	// Return value is in format:  0xAARRGGBB
+}
+
 juce::Image juce::HEIFImageFormat::decodeImage(juce::InputStream& in)
 {
 	juce::Image decodedImage;
@@ -93,15 +102,27 @@ juce::Image juce::HEIFImageFormat::decodeImage(juce::InputStream& in)
 	Image::BitmapData bmp(decodedImage, Image::BitmapData::writeOnly);
 	for (int y = 0; y < height; y++)
 	{
-		memcpy_s(bmp.getLinePointer(y), bmp.lineStride, data + (y * stride), stride);
-		for (int x = 0; x < width; x++)
+		auto linePtr = data + (y * stride);
+		if (hasAlpha)
 		{
-			auto bgr = decodedImage.getPixelAt(x, y);
-			decodedImage.setPixelAt(x, y, Colour(bgr.getBlue(), bgr.getGreen(), bgr.getRed(), bgr.getFloatAlpha()));
+			memcpy_s(bmp.getLinePointer(y), bmp.lineStride, linePtr, stride);
+			for (int x = 0; x < width; x++)
+			{
+				ABGRtoARGB((uint32*)bmp.getPixelPointer(x, y));
+			}
+		}
+		else
+		{			
+			for (int x = 0; x < width; x++)
+			{
+				auto dest = bmp.getPixelPointer(x, y);
+				auto src = linePtr + x*3;
+				dest[0] = src[2];
+				dest[1] = src[1];
+				dest[2] = src[0];
+			}
 		}
 	}
-
-	
 
 	// clean up resources
 	heif_image_release(encodedImage);
