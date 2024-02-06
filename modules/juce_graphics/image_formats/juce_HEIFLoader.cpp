@@ -64,7 +64,7 @@ bool juce::HEIFImageFormat::canUnderstand(InputStream& in)
 	return canUnderstand;
 }
 
-inline void ABGRtoARGB(uint32* x)
+inline void ABGRtoARGB(juce::uint32* x)
 {	
 	// Source is in format: 0xAABBGGRR
 	*x = (*x & 0xFF00FF00) |		
