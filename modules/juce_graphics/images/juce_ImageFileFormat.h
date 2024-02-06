@@ -225,7 +225,7 @@ private:
 #define PACKED( __Declaration__ ) __Declaration__ __attribute__((__packed__))
 #elif defined _MSC_VER
 #define PACKED( __Declaration__ ) __pragma( pack(push, 1) ) __Declaration__ __pragma( pack(pop))
-#else 
+#else
 #define PACKED( __Declaration__ ) __Declaration__
 #endif
 
@@ -310,5 +310,29 @@ private:
     bool lossless = true;
     float quality;
 };
+//==============================================================================
+/**
+A subclass of ImageFileFormat for reading and writing HEICfiles.
 
+@see ImageFileFormat, PNGImageFormat
+
+@tags{Graphics}
+*/
+class JUCE_API  HEIFImageFormat : public ImageFileFormat
+{
+public:
+    //==============================================================================
+    HEIFImageFormat();
+    ~HEIFImageFormat() override;
+    //==============================================================================
+    String getFormatName() override;
+    bool usesFileExtension(const File&) override;
+    bool canUnderstand(InputStream&) override;
+    Image decodeImage(InputStream&) override;
+    bool writeImageToStream(const Image& sourceImage, OutputStream& destStream) override;
+
+private:
+    bool lossless = true;
+    float quality;
+};
 } // namespace juce
