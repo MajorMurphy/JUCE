@@ -24,8 +24,11 @@
 */
 
 #include <JuceHeader.h>
+#if JUCE_LINK_LIBHEIF_CODE
 #include <libheif/heif.h>
+#endif
 
+JUCE_BEGIN_IGNORE_WARNINGS_MSVC(4100)
 
 juce::HEIFImageFormat::HEIFImageFormat()
 {
@@ -46,9 +49,11 @@ bool juce::HEIFImageFormat::usesFileExtension(const File& file)
 	return file.hasFileExtension("heif;heic");
 }
 
-bool juce::HEIFImageFormat::canUnderstand(InputStream& in)
+bool juce::HEIFImageFormat::canUnderstand([[maybe_unused]] InputStream& in)
 {
+#if JUCE_LINK_LIBHEIF_CODE
 	bool canUnderstand = false;
+
 	juce::Image decodedImage;
 	juce::MemoryBlock encodedImageData(in.getNumBytesRemaining());
 	in.read(encodedImageData.getData(), encodedImageData.getSize());
@@ -61,7 +66,12 @@ bool juce::HEIFImageFormat::canUnderstand(InputStream& in)
 
 	// clean up resources
 	heif_context_free(ctx);
+
 	return canUnderstand;
+#else
+	jassertfalse;
+	return false;
+#endif
 }
 
 inline void ABGRtoARGB(juce::uint32* x)
@@ -75,6 +85,7 @@ inline void ABGRtoARGB(juce::uint32* x)
 
 juce::Image juce::HEIFImageFormat::decodeImage(juce::InputStream& in)
 {
+#if JUCE_LINK_LIBHEIF_CODE
 	juce::Image decodedImage;
 	juce::MemoryBlock encodedImageData(in.getNumBytesRemaining());
 	in.read(encodedImageData.getData(), encodedImageData.getSize());
@@ -128,13 +139,19 @@ juce::Image juce::HEIFImageFormat::decodeImage(juce::InputStream& in)
 	heif_image_release(encodedImage);
 	heif_image_handle_release(handle);
 	heif_context_free(ctx);
-
 	return decodedImage;
+#else 
+	jassertfalse;
+	return Image();
+#endif
+
 }
 
 bool juce::HEIFImageFormat::writeImageToStream(const Image&, OutputStream&)
 {
+	jassertfalse;
 	return false;
 }
 
 
+JUCE_END_IGNORE_WARNINGS_MSVC
