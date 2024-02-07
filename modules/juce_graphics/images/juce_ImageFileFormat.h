@@ -220,11 +220,7 @@ public:
     bool writeImageToStream(const Image&, OutputStream&) override;
 
 private:
-#ifdef JUCE_ANDROID
-#define PACKED( Declaration ) Declaration
-#elif defined __GNUC__
-#define PACKED( __Declaration__ ) __Declaration__ __attribute__((__packed__))
-#elif defined JUCE_WINDOWS
+#if defined JUCE_WINDOWS
 #define PACKED( __Declaration__ ) __pragma( pack(push, 1) ) __Declaration__ __pragma( pack(pop))
 #else
 #define PACKED( __Declaration__ ) __Declaration__
