@@ -220,34 +220,26 @@ public:
     bool writeImageToStream(const Image&, OutputStream&) override;
 
 private:
-#if defined JUCE_WINDOWS
-#define PACKED( __Declaration__ ) __pragma( pack(push, 1) ) __Declaration__ __pragma( pack(pop))
-#else
-#define PACKED( __Declaration__ ) __Declaration__
-#endif
 
-    PACKED(struct BitmapInfoHeader {
-        uint32 size = sizeof(BitmapInfoHeader); // size of structure in bytes
-        int32  width = 0; // pixel width
-        int32  height = 0; // pixel height
-        int16  planes = 1; // always 1
-        int16  bitCount; // bits per pixel
-        uint32 compression = 0; // leave set to 0, since no compression is supported here
-        uint32 imageSize = 0; // size of image in bytes. Can be left 0 for uncompressed images.
-        int32  pixelsPerMeterX = 0; // pixels per meter horizontally
-        int32  pixelsPerMeterY = 0; // pixels per meter vertically
-        uint32 colorsUsed = 0; // not relevent since we won't support color tables
-        uint32 colorsImportant = 0; // not relevent since we won't support color tables
-    };)
-
-        PACKED(struct BitmapFileHeader {
-        uint16  type;// = 0x4d42; // always 0x4d42 'BM'
-        uint32 fileSize;// = 0; // filesize in bytes
-        uint16  reserved1;// = 0; // must be 0
-        uint16  reserved2;// = 0; // must be 0
-        uint32 offset;// = sizeof(BitmapFileHeader) + sizeof(BitmapInfoHeader);  // offset to image data
-    };)
-#undef PACKED
+    struct BMPHeader
+    {
+        uint16_t        magic;
+        uint32_t        fileSize;
+        uint16_t        reserved1;
+        uint16_t        reserved2;
+        uint32_t        dataOffset;
+        uint32_t        headerSize;
+        int32_t         width;
+        int32_t         height;
+        uint16_t        planes;
+        uint16_t        bitsPerPixel;
+        uint32_t        compression;
+        uint32_t        imageDataSize;
+        int32_t         hPixelsPerMeter;
+        int32_t         vPixelsPerMeter;
+        uint32_t        coloursUsed;
+        uint32_t        coloursRequired;
+    };
 };
 
 //==============================================================================

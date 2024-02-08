@@ -1,27 +1,4 @@
-/*
-  ==============================================================================
 
-   This file is part of the JUCE library.
-   Copyright (c) 2022 - Raw Material Software Limited
-
-   JUCE is an open source library subject to commercial or open-source
-   licensing.
-
-   By using JUCE, you agree to the terms of both the JUCE 7 End-User License
-   Agreement and JUCE Privacy Policy.
-
-   End User License Agreement: www.juce.com/juce-7-licence
-   Privacy Policy: www.juce.com/juce-privacy-policy
-
-   Or: You may also use this code under the terms of the GPL v3 (see
-   www.gnu.org/licenses).
-
-   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
-   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
-   DISCLAIMED.
-
-  ==============================================================================
-*/
 
 namespace juce
 {
@@ -55,84 +32,123 @@ namespace juce
     String BMPImageFormat::getFormatName() { return "BMP"; }
     bool BMPImageFormat::usesFileExtension(const File& f) { return f.hasFileExtension("bmp"); }
 
-    bool BMPImageFormat::canUnderstand(InputStream& in)
+    bool BMPImageFormat::canUnderstand(InputStream& input)
     {
-        BitmapFileHeader header;
-        BitmapInfoHeader info;
-
-        if (in.read(&header, sizeof(header)) != sizeof(header))
-            return false;
-
-        if (header.type != 0x4d42)
-            // first bytes expected to be 'BM'
-            return false;
-        
-        if (in.read(&info, sizeof(info)) != sizeof(info))
-            return false;
-
-        if (info.compression != 0)
-            // compression not supported here
-            return false;
-
-        if (info.bitCount != 24)
-            // only 8-bit RGB supported here
-            return false;
-
-
-        if (info.width <= 0 || info.height <= 0)
-            return false;
-
-        return true;
+        return input.readByte() == 'B' &&
+            input.readByte() == 'M';
 
     }
 
-    Image BMPImageFormat::decodeImage(InputStream& in)
+    Image BMPImageFormat::decodeImage(InputStream& input)
     {
-        Image img;
-        BitmapFileHeader header;
-        BitmapInfoHeader info;
-        if (in.read(&header, sizeof(header)) != sizeof(header))
-            return img;
+        
+        BMPHeader hdr;
+        hdr.magic = uint16_t(input.readShort());
+        hdr.fileSize = uint32_t(input.readInt());
+        hdr.reserved1 = uint16_t(input.readShort());
+        hdr.reserved2 = uint16_t(input.readShort());
+        hdr.dataOffset = uint32_t(input.readInt());
+        hdr.headerSize = uint32_t(input.readInt());
+        hdr.width = int32_t(input.readInt());
+        hdr.height = int32_t(input.readInt());
+        hdr.planes = uint16_t(input.readShort());
+        hdr.bitsPerPixel = uint16_t(input.readShort());
+        hdr.compression = uint32_t(input.readInt());
+        hdr.imageDataSize = uint32_t(input.readInt());
+        hdr.hPixelsPerMeter = int32_t(input.readInt());
+        hdr.vPixelsPerMeter = int32_t(input.readInt());
+        hdr.coloursUsed = uint32_t(input.readInt());
+        hdr.coloursRequired = uint32_t(input.readInt());
 
-        if (header.type != 0x4d42)
-            // first bytes expected to be 'BM'
-            return img;
-
-        if (in.read(&info, sizeof(info)) != sizeof(info))
-            return img;
-
-        img = Image(Image::RGB, info.width, abs(info.height), true);
-
-        auto stride = ((((info.width * info.bitCount) + 31) & ~31) >> 3);
-        info.imageSize = abs(info.height) * stride;
-
-        MemoryBlock scanLine(stride);
-
-        for (auto y = 0; y < abs(info.height); y++)
+        if (hdr.compression != 0 || (hdr.bitsPerPixel != 8 && hdr.bitsPerPixel != 24 && hdr.bitsPerPixel != 32))
         {
-            auto imageData = scanLine.getData();
-            if (in.read(imageData, stride) != stride)
+            jassertfalse; // Unsupported BMP format
+            return juce::Image();
+        }
+
+        if (hdr.bitsPerPixel == 8 && hdr.coloursUsed == 0)
+            hdr.coloursUsed = 256;
+
+        juce::Array<juce::PixelARGB> colourTable;
+
+        for (int i = 0; i < int(hdr.coloursUsed); i++)
+        {
+            auto b = uint8_t(input.readByte());
+            auto g = uint8_t(input.readByte());
+            auto r = uint8_t(input.readByte());
+            input.readByte();
+
+            colourTable.add(juce::PixelARGB(255, r, g, b));
+        }
+
+        bool bottomUp = hdr.height < 0;
+        hdr.height = std::abs(hdr.height);
+
+        juce::Image img(juce::Image::ARGB, int(hdr.width), int(hdr.height), true);
+        juce::Image::BitmapData data(img, juce::Image::BitmapData::writeOnly);
+
+        input.setPosition(hdr.dataOffset);
+
+        int bytesPerPixel = hdr.bitsPerPixel / 8;
+        int bytesPerRow = int(std::floor((hdr.bitsPerPixel * hdr.width + 31) / 32.0) * 4);
+
+        auto rowData = new uint8_t[size_t(bytesPerRow)];
+        for (int y = 0; y < int(hdr.height); y++)
+        {
+            input.read(rowData, bytesPerRow);
+
+            for (int x = 0; x < int(hdr.width); x++)
             {
-                jassertfalse;
-                return img;
-            }
-            
-            for (auto x = 0; x < info.width; x++)
-            {
-                auto pixelPtr = (uint8_t*)imageData + x * info.bitCount / 8;
-                img.setPixelAt(x,
-                    info.height < 0 ? y : abs(info.height) - y -1,
-                    Colour(*(pixelPtr), *(pixelPtr + 1), *pixelPtr + 2));
+                uint8_t* d = &rowData[x * bytesPerPixel];
+
+                juce::PixelARGB* p = (juce::PixelARGB*)data.getPixelPointer(x, int(bottomUp ? y : hdr.height - y - 1));
+                if (hdr.bitsPerPixel == 8)
+                    *p = colourTable[d[0]];
+                else
+                    p->setARGB(bytesPerPixel == 4 ? d[3] : 255, d[2], d[1], d[0]);
             }
         }
+        delete[] rowData;
+
         return img;
     }
 
-    bool BMPImageFormat::writeImageToStream(const Image& /*sourceImage*/, OutputStream& /*destStream*/)
+    bool BMPImageFormat::writeImageToStream(const Image& sourceImage, OutputStream& dst)
     {
-        // Not yet implemented
-        jassertfalse;
-        return false;
+        juce::Image img = sourceImage.convertedToFormat(juce::Image::ARGB);
+
+        dst.writeByte('B');
+        dst.writeByte('M');
+        dst.writeInt(40 + img.getWidth() * img.getHeight() * 4);
+        dst.writeShort(0);
+        dst.writeShort(0);
+        dst.writeInt(54);
+        dst.writeInt(40);
+        dst.writeInt(img.getWidth());
+        dst.writeInt(img.getHeight());
+        dst.writeShort(1);
+        dst.writeShort(32);
+        dst.writeInt(0);
+        dst.writeInt(img.getWidth() * img.getHeight() * 4);
+        dst.writeInt(2835);
+        dst.writeInt(2835);
+        dst.writeInt(0);
+        dst.writeInt(0);
+
+        juce::Image::BitmapData data(img, juce::Image::BitmapData::readOnly);
+        for (int y = 0; y < img.getHeight(); y++)
+        {
+            for (int x = 0; x < img.getWidth(); x++)
+            {
+                juce::PixelARGB* p = (juce::PixelARGB*)data.getPixelPointer(x, int(img.getHeight() - y - 1));
+                dst.writeByte(char(p->getBlue()));
+                dst.writeByte(char(p->getGreen()));
+                dst.writeByte(char(p->getRed()));
+                dst.writeByte(char(p->getAlpha()));
+            }
+        }
+
+        return true;
     }
 
 
