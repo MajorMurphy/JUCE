@@ -24,7 +24,7 @@
 */
 
 #include <JuceHeader.h>
-#if JUCE_LINK_LIBHEIF_CODE
+#if JUCE_LINK_LIBHEIF_CODE && !JUCE_USING_COREIMAGE_LOADER
 #include <libheif/heif.h>
 #endif
 
@@ -51,7 +51,17 @@ bool juce::HEIFImageFormat::usesFileExtension(const File& file)
 
 bool juce::HEIFImageFormat::canUnderstand([[maybe_unused]] InputStream& in)
 {
-#if JUCE_LINK_LIBHEIF_CODE
+#if JUCE_USING_COREIMAGE_LOADER
+    in.readByte();
+    in.readByte();
+    in.readByte();
+    in.readByte();
+    in.readByte();
+    uint32 ftpy = in.readInt();
+    uint32 heic = in.readInt();
+    return heic == 6515045 && ftpy == 1752201588;
+
+#elif JUCE_LINK_LIBHEIF_CODE
 	bool canUnderstand = false;
 
 	juce::Image decodedImage;
@@ -83,9 +93,15 @@ inline void ABGRtoARGB(juce::uint32* x)
 	// Return value is in format:  0xAARRGGBB
 }
 
+#if JUCE_USING_COREIMAGE_LOADER
+ Image juce_loadWithCoreImage (InputStream&);
+#endif
+
 juce::Image juce::HEIFImageFormat::decodeImage(juce::InputStream& in)
 {
-#if JUCE_LINK_LIBHEIF_CODE
+#if JUCE_USING_COREIMAGE_LOADER
+    return juce_loadWithCoreImage (in);
+#elif JUCE_LINK_LIBHEIF_CODE
 	juce::Image decodedImage;
 	juce::MemoryBlock encodedImageData(in.getNumBytesRemaining());
 	in.read(encodedImageData.getData(), encodedImageData.getSize());
@@ -94,7 +110,7 @@ juce::Image juce::HEIFImageFormat::decodeImage(juce::InputStream& in)
 	heif_context_read_from_memory_without_copy(ctx, encodedImageData.getData(), encodedImageData.getSize(), nullptr);
 
 	// get a handle to the primary image
-	heif_image_handle* handle;
+	heif_image_handle* handle = nullptr;
 	heif_context_get_primary_image_handle(ctx, &handle);
 
 	auto width = heif_image_handle_get_width(handle);
@@ -102,12 +118,21 @@ juce::Image juce::HEIFImageFormat::decodeImage(juce::InputStream& in)
 	auto hasAlpha = heif_image_handle_has_alpha_channel(handle);
 
 	// decode the image and convert colorspace to RGB, saved as 24bit interleaved
-	heif_image* encodedImage;
+	heif_image* encodedImage = nullptr;
 	heif_decode_image(handle, &encodedImage, heif_colorspace_RGB, hasAlpha ? heif_chroma_interleaved_RGBA : heif_chroma_interleaved_RGB, nullptr);
+    if(!encodedImage)
+    {
+        jassertfalse;
+        return Image();
+    }
 
-	int stride;
+	int stride = 0;
 	const uint8_t* data = heif_image_get_plane_readonly(encodedImage, heif_channel_interleaved, &stride);
-
+    if(stride<=0)
+    {
+        jassertfalse;
+        return Image();
+    }
 
 	decodedImage = Image(hasAlpha ? Image::ARGB : Image::RGB, width, height, false);
 	Image::BitmapData bmp(decodedImage, Image::BitmapData::writeOnly);
