@@ -116,11 +116,15 @@ juce::Image juce::HEIFImageFormat::decodeImage(juce::InputStream& in)
 		auto linePtr = data + (y * stride);
 		if (hasAlpha)
 		{
-			memcpy_s(bmp.getLinePointer(y), bmp.lineStride, linePtr, stride);
-			for (int x = 0; x < width; x++)
-			{
-				ABGRtoARGB((uint32*)bmp.getPixelPointer(x, y));
-			}
+            if(bmp.lineStride==stride)
+            {
+                memcpy(bmp.getLinePointer(y), linePtr, stride);
+                for (int x = 0; x < width; x++)
+                {
+                    ABGRtoARGB((uint32*)bmp.getPixelPointer(x, y));
+                }
+            }
+            else jassertfalse;
 		}
 		else
 		{			
