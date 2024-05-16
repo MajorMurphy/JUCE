@@ -73,6 +73,14 @@ public:
     void fillRectList (const RectangleList<float>&) override;
     void fillPath (const Path&, const AffineTransform&) override;
     void drawImage (const Image& sourceImage, const AffineTransform&) override;
+    void drawImageHDR(
+        unsigned int width,
+        unsigned int height,
+        unsigned int stride,
+        void* data,
+        const AffineTransform&
+    ) override;
+    bool supportsHDR() { return true; }
 
     //==============================================================================
     void drawLine (const Line<float>&) override;
@@ -112,6 +120,7 @@ public:
     // Min & max frame sizes; same as Direct3D texture size limits
     static int constexpr minFrameSize = 1;
     static int constexpr maxFrameSize = 16384;
+
 
 protected:
     struct SavedState;

@@ -121,6 +121,14 @@ public:
 
     virtual void drawImage (const Image&, const AffineTransform&) = 0;
     virtual void drawLine (const Line<float>&) = 0;
+    virtual bool supportsHDR() { return false; }
+    virtual void drawImageHDR(
+        unsigned int width,
+        unsigned int height,
+        unsigned int stride,
+        void* data,
+        const AffineTransform&
+    ) { jassertfalse; }
 
     virtual void drawLineWithThickness (const Line<float>& line, float lineThickness)
     {

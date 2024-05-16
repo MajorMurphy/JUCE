@@ -1360,6 +1360,92 @@ void Direct2DGraphicsContext::drawImage (const Image& image, const AffineTransfo
     }
 }
 
+void Direct2DGraphicsContext::drawImageHDR(
+        unsigned int width,
+        unsigned int height,
+        unsigned int stride,
+        void* data,
+        const AffineTransform& transform
+    )
+{
+
+    if (width == 0 || height == 0 || stride < width * 8 )
+    {
+        jassertfalse;
+        return;
+    }
+
+    applyPendingClipList();
+
+    if (auto deviceContext = getPimpl()->getDeviceContext())
+    {
+        // Is this a Direct2D image already with the correct format?
+        ComSmartPtr<ID2D1Bitmap1> d2d1Bitmap;
+        Rectangle<int> imageClipArea(width, height);
+
+
+        if (!d2d1Bitmap || d2d1Bitmap->GetPixelFormat().format != DXGI_FORMAT_B8G8R8A8_UNORM)
+        {
+            D2D1_BITMAP_PROPERTIES1 bitmapProperties{};
+            bitmapProperties.pixelFormat.format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+            bitmapProperties.pixelFormat.alphaMode = D2D1_ALPHA_MODE_PREMULTIPLIED;
+            bitmapProperties.dpiX = USER_DEFAULT_SCREEN_DPI;
+            bitmapProperties.dpiY = USER_DEFAULT_SCREEN_DPI;
+
+            const D2D1_SIZE_U size{ width, height };
+
+            deviceContext->CreateBitmap(size,
+                data,
+                stride,
+                bitmapProperties,
+                d2d1Bitmap.resetAndGetPointerAddress());
+            
+        }
+
+        if (d2d1Bitmap)
+        {
+            auto sourceRectF = D2DUtilities::toRECT_F(imageClipArea);
+
+            auto imageTransform = currentState->currentTransform.getTransformWith(transform);
+
+            if (imageTransform.isOnlyTranslation())
+            {
+                auto destinationRect = D2DUtilities::toRECT_F(imageClipArea.toFloat() + Point<float> { imageTransform.getTranslationX(), imageTransform.getTranslationY() });
+
+                deviceContext->DrawBitmap(d2d1Bitmap,
+                    &destinationRect,
+                    currentState->fillType.getOpacity(),
+                    currentState->interpolationMode,
+                    &sourceRectF,
+                    {});
+
+                return;
+            }
+
+            if (D2DHelpers::isTransformAxisAligned(imageTransform))
+            {
+                auto destinationRect = D2DUtilities::toRECT_F(imageClipArea.toFloat().transformedBy(imageTransform));
+
+                deviceContext->DrawBitmap(d2d1Bitmap,
+                    &destinationRect,
+                    currentState->fillType.getOpacity(),
+                    currentState->interpolationMode,
+                    &sourceRectF,
+                    {});
+                return;
+            }
+
+            ScopedTransform scopedTransform{ *getPimpl(), currentState, transform };
+            deviceContext->DrawBitmap(d2d1Bitmap,
+                nullptr,
+                currentState->fillType.getOpacity(),
+                currentState->interpolationMode,
+                &sourceRectF,
+                {});
+        }
+    }
+}
+
 void Direct2DGraphicsContext::drawLine (const Line<float>& line)
 {
     drawLineWithThickness (line, 1.0f);
