@@ -408,6 +408,9 @@ static RectangleList<float> operator+ (RectangleList<float> a, Point<float> b)
 //==============================================================================
 struct Direct2DGraphicsContext::Pimpl : private DxgiAdapterListener
 {
+public:
+
+    Direct2DDeviceResources deviceResources;
 protected:
     Direct2DGraphicsContext& owner;
     SharedResourcePointer<DirectX> directX;
@@ -415,7 +418,6 @@ protected:
     RectangleList<int> paintAreas;
 
     DxgiAdapter::Ptr adapter;
-    Direct2DDeviceResources deviceResources;
 
     std::vector<std::unique_ptr<Direct2DGraphicsContext::SavedState>> savedClientStates;
 
@@ -1364,7 +1366,9 @@ void Direct2DGraphicsContext::drawImageHDR(
         unsigned int width,
         unsigned int height,
         unsigned int stride,
-        void* data,
+        void* imgData,
+        void* iccData,
+        unsigned int iccDataSize,
         const AffineTransform& transform
     )
 {
@@ -1379,70 +1383,100 @@ void Direct2DGraphicsContext::drawImageHDR(
 
     if (auto deviceContext = getPimpl()->getDeviceContext())
     {
-        // Is this a Direct2D image already with the correct format?
+        ComSmartPtr<ID2D1ColorContext> srcColorContext;
+        if (FAILED(deviceContext->CreateColorContext( D2D1_COLOR_SPACE_CUSTOM, (BYTE*)iccData, iccDataSize, srcColorContext.resetAndGetPointerAddress())))
+        {
+            jassertfalse;
+            return;
+        }
+        ComSmartPtr<ID2D1Effect> colorManagementEffect;
+        if (FAILED(deviceContext->CreateEffect(CLSID_D2D1ColorManagement, colorManagementEffect.resetAndGetPointerAddress())))
+        {
+            jassertfalse;
+            return;
+        }
+        if (FAILED(colorManagementEffect->SetValue(D2D1_COLORMANAGEMENT_PROP_QUALITY, D2D1_COLORMANAGEMENT_QUALITY_BEST)))
+        {
+            jassertfalse;
+            return;
+        }
+
+        if (FAILED(colorManagementEffect->SetValue(D2D1_COLORMANAGEMENT_PROP_SOURCE_COLOR_CONTEXT, srcColorContext)))
+        {
+            jassertfalse;
+            return;
+        }
+
+        ComSmartPtr<ID2D1ColorContext> destColorContext;
+        if (FAILED(deviceContext->CreateColorContext(D2D1_COLOR_SPACE_SCRGB, nullptr, 0, destColorContext.resetAndGetPointerAddress())))
+        {
+            jassertfalse;
+            return;
+        }
+        if (FAILED(colorManagementEffect->SetValue(D2D1_COLORMANAGEMENT_PROP_DESTINATION_COLOR_CONTEXT, destColorContext)))
+        {
+            jassertfalse;
+            return;
+        }
+
         ComSmartPtr<ID2D1Bitmap1> d2d1Bitmap;
         Rectangle<int> imageClipArea(width, height);
 
 
-        if (!d2d1Bitmap || d2d1Bitmap->GetPixelFormat().format != DXGI_FORMAT_B8G8R8A8_UNORM)
+        D2D1_BITMAP_PROPERTIES1 bitmapProperties{};
+        bitmapProperties.pixelFormat.format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+        bitmapProperties.pixelFormat.alphaMode = D2D1_ALPHA_MODE_PREMULTIPLIED;
+        bitmapProperties.dpiX = USER_DEFAULT_SCREEN_DPI;
+        bitmapProperties.dpiY = USER_DEFAULT_SCREEN_DPI;
+
+        const D2D1_SIZE_U size{ width, height };
+
+        if (FAILED(deviceContext->CreateBitmap(size,
+            imgData,
+            stride,
+            bitmapProperties,
+            d2d1Bitmap.resetAndGetPointerAddress())))
         {
-            D2D1_BITMAP_PROPERTIES1 bitmapProperties{};
-            bitmapProperties.pixelFormat.format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-            bitmapProperties.pixelFormat.alphaMode = D2D1_ALPHA_MODE_PREMULTIPLIED;
-            bitmapProperties.dpiX = USER_DEFAULT_SCREEN_DPI;
-            bitmapProperties.dpiY = USER_DEFAULT_SCREEN_DPI;
-
-            const D2D1_SIZE_U size{ width, height };
-
-            deviceContext->CreateBitmap(size,
-                data,
-                stride,
-                bitmapProperties,
-                d2d1Bitmap.resetAndGetPointerAddress());
-            
+            jassertfalse;
+            return;
         }
 
-        if (d2d1Bitmap)
+        colorManagementEffect->SetInput(0, d2d1Bitmap);
+
+        auto sourceRectF = D2DUtilities::toRECT_F(imageClipArea);
+
+        auto imageTransform = currentState->currentTransform.getTransformWith(transform);
+
+        if (imageTransform.isOnlyTranslation())
         {
-            auto sourceRectF = D2DUtilities::toRECT_F(imageClipArea);
+            auto destinationRect = D2DUtilities::toRECT_F(imageClipArea.toFloat() + Point<float> { imageTransform.getTranslationX(), imageTransform.getTranslationY() });
 
-            auto imageTransform = currentState->currentTransform.getTransformWith(transform);
+            deviceContext->DrawImage(colorManagementEffect, D2D1_INTERPOLATION_MODE_LINEAR);
 
-            if (imageTransform.isOnlyTranslation())
-            {
-                auto destinationRect = D2DUtilities::toRECT_F(imageClipArea.toFloat() + Point<float> { imageTransform.getTranslationX(), imageTransform.getTranslationY() });
+            return;
+        }
 
-                deviceContext->DrawBitmap(d2d1Bitmap,
-                    &destinationRect,
-                    currentState->fillType.getOpacity(),
-                    currentState->interpolationMode,
-                    &sourceRectF,
-                    {});
+        if (D2DHelpers::isTransformAxisAligned(imageTransform))
+        {
+            auto destinationRect = D2DUtilities::toRECT_F(imageClipArea.toFloat().transformedBy(imageTransform));
 
-                return;
-            }
-
-            if (D2DHelpers::isTransformAxisAligned(imageTransform))
-            {
-                auto destinationRect = D2DUtilities::toRECT_F(imageClipArea.toFloat().transformedBy(imageTransform));
-
-                deviceContext->DrawBitmap(d2d1Bitmap,
-                    &destinationRect,
-                    currentState->fillType.getOpacity(),
-                    currentState->interpolationMode,
-                    &sourceRectF,
-                    {});
-                return;
-            }
-
-            ScopedTransform scopedTransform{ *getPimpl(), currentState, transform };
             deviceContext->DrawBitmap(d2d1Bitmap,
-                nullptr,
+                &destinationRect,
                 currentState->fillType.getOpacity(),
                 currentState->interpolationMode,
                 &sourceRectF,
                 {});
+            return;
         }
+
+        ScopedTransform scopedTransform{ *getPimpl(), currentState, transform };
+        deviceContext->DrawBitmap(d2d1Bitmap,
+            nullptr,
+            currentState->fillType.getOpacity(),
+            currentState->interpolationMode,
+            &sourceRectF,
+            {});
+        
     }
 }
 

@@ -126,7 +126,9 @@ public:
         unsigned int width,
         unsigned int height,
         unsigned int stride,
-        void* data,
+        void* imgData,
+        void* iccData,
+        unsigned int iccDataSize,
         const AffineTransform&
     ) { jassertfalse; }
 

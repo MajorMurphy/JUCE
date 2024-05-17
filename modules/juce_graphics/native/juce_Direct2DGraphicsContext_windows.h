@@ -77,7 +77,9 @@ public:
         unsigned int width,
         unsigned int height,
         unsigned int stride,
-        void* data,
+        void* imageData,
+        void* iccData,
+        unsigned int iccDataSize,
         const AffineTransform&
     ) override;
     bool supportsHDR() { return true; }
