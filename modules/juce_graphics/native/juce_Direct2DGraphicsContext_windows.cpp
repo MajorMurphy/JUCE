@@ -914,7 +914,7 @@ void Direct2DGraphicsContext::excludeClipRectangle (const Rectangle<int>& userSp
     if (transform.isOnlyTranslated)
     {
         // Just a translation; pre-translate the exclusion area
-        auto translatedR = transform.translated (userSpaceExcludedRectangle.toFloat());
+        auto translatedR = transform.translated (userSpaceExcludedRectangle.toFloat()).getLargestIntegerWithin().toFloat();
 
         if (! translatedR.contains (frameSize))
         {
@@ -925,7 +925,7 @@ void Direct2DGraphicsContext::excludeClipRectangle (const Rectangle<int>& userSp
     else if (currentState->isCurrentTransformAxisAligned())
     {
         // Just a scale + translation; pre-transform the exclusion area
-        auto transformedR = transform.boundsAfterTransform (userSpaceExcludedRectangle.toFloat());
+        auto transformedR = transform.boundsAfterTransform (userSpaceExcludedRectangle.toFloat()).getLargestIntegerWithin().toFloat();
 
         if (! transformedR.contains (frameSize))
         {
@@ -1169,6 +1169,9 @@ void Direct2DGraphicsContext::setInterpolationQuality (Graphics::ResamplingQuali
 
 void Direct2DGraphicsContext::fillRect (const Rectangle<int>& r, bool replaceExistingContents)
 {
+    if (r.isEmpty())
+        return;
+
     if (replaceExistingContents)
         clipToRectangle (r);
 
@@ -1189,6 +1192,9 @@ void Direct2DGraphicsContext::fillRect (const Rectangle<int>& r, bool replaceExi
 
 void Direct2DGraphicsContext::fillRect (const Rectangle<float>& r)
 {
+    if (r.isEmpty())
+        return;
+
     auto fill = [] (Rectangle<float> rect, ComSmartPtr<ID2D1DeviceContext1> deviceContext, ComSmartPtr<ID2D1Brush> brush)
     {
         if (brush != nullptr)
